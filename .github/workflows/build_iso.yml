@@ -14,7 +14,7 @@ jobs:
   build_ISOs:
     runs-on: ubuntu-latest
     container:
-      image: alpine:${{ env.version }}
+      image: alpine:edge
 
     steps:
       - uses: actions/checkout@v3

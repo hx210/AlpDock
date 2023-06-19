@@ -1,5 +1,6 @@
 env:
   version: v3.18
+  TOOLCHAIN_TAG: temp  
 
 name: Alpine ISO Builder
 
@@ -11,9 +12,9 @@ on:
 
 jobs:
   build_ISOs:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     container:
-      image: alpine:3.18
+      image: alpine:${{ env.version }}
 
     steps:
       - uses: actions/checkout@v3
@@ -45,9 +46,14 @@ jobs:
               --repository https://dl-cdn.alpinelinux.org/alpine/${version}/main \
               --repository https://dl-cdn.alpinelinux.org/alpine/${version}/community
 
-      - uses: "marvinpinto/action-automatic-releases@latest"
+
+      - name: 上传镜像文件
+        uses: ncipollo/release-action@v1
         with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          prerelease: false
-          files: |
-            *.iso
+          name: temp
+          allowUpdates: true
+          replacesArtifacts: true
+          tag: ${{ env.version }}
+          commit: ${{ env.CURRENT_BRANCH }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          artifacts: "*.iso"

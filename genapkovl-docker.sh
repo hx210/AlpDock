@@ -51,6 +51,7 @@ coreutils
 docker
 docker-bash-completion
 docker-cli-compose
+zfs-lts
 findutils
 openssh
 procps

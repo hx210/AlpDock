@@ -1,52 +1,69 @@
 env:
-  version: v3.18
+    version: v3.17
+    TOOLCHAIN_TAG: temp
 
 name: Alpine ISO Builder
 
 on:
-  push:
-    tags:
-    - 'v*'
+    push:
+        tags:
+            - "v*"
+    workflow_dispatch:
 
 jobs:
-  build_ISOs:
-    runs-on: ubuntu-22.04
-    container:
-      image: alpine:3.18
+    build_ISOs:
+        runs-on: ubuntu-latest
+        container:
+            image: alpine:edge
+        strategy:
+            fail-fast: false
+            matrix:
+                arch: [x86_64, aarch64]
 
-    steps:
-      - uses: actions/checkout@v3
+        steps:
+            - uses: actions/checkout@v3
 
-      - name: Install software
-        run: |
-          apk update
-          apk upgrade
-          apk --no-cache add alpine-sdk build-base apk-tools alpine-conf \
-              busybox fakeroot syslinux xorriso squashfs-tools sudo mtools \
-              dosfstools grub-efi
+            - name: Install software
+              run: |
+                  apk update
+                  apk upgrade
+                  apk --no-cache add alpine-keys alpine-sdk build-base apk-tools alpine-conf \
+                      busybox fakeroot syslinux xorriso squashfs-tools sudo mtools \
+                      dosfstools grub-efi
 
-      - name: Download aports
-        run: git clone --single-branch https://gitlab.alpinelinux.org/alpine/aports.git
+            - name: Download aports
+              run: git clone --filter=tree:0 --single-branch https://github.com/alpinelinux/aports
 
-      - name: Configure build keys
-        run: echo | abuild-keygen -i -a
+            - name: Configure build keys
+              run: echo | abuild-keygen -i -a
 
-      - name: Make ISO (${{ env.version }})
-        run: |
-          chmod +x *.sh
-          mv *.sh aports/scripts/
+            - name: Make ISO (${{ env.version }})
+              run: |
+                  chmod +x *.sh
+                  mv -f *.sh aports/scripts/
 
-          aports/scripts/mkimage.sh \
-              --tag ${version} \
-              --arch x86_64 \
-              --profile docker \
-              --outdir . \
-              --repository https://dl-cdn.alpinelinux.org/alpine/${version}/main \
-              --repository https://dl-cdn.alpinelinux.org/alpine/${version}/community
+                  aports/scripts/mkimage.sh \
+                      --tag ${version} \
+                      --arch ${{ matrix.arch }} \
+                      --profile standard \
+                      --outdir . \
+                      --hostkeys \
+                      --repository https://dl-cdn.alpinelinux.org/alpine/${version}/main \
+                      --repository https://dl-cdn.alpinelinux.org/alpine/${version}/community
 
-      - uses: "marvinpinto/action-automatic-releases@latest"
-        with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          prerelease: false
-          files: |
-            *.iso
+            - name: 上传镜像文件
+              uses: ncipollo/release-action@v1
+              with:
+                  name: ${{ env.TOOLCHAIN_TAG }}
+                  allowUpdates: true
+                  replacesArtifacts: true
+                  tag: ${{ env.TOOLCHAIN_TAG }}
+                  token: ${{ secrets.GITHUB_TOKEN }}
+                  artifacts: "*.iso"
+
+            - name: Upload a Build Artifact
+              uses: actions/upload-artifact@v3
+              with:
+                  name: ${{ env.version }}-${{ github.sha }}
+                  path: |
+                      *.iso
